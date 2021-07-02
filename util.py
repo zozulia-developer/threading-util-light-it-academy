@@ -5,12 +5,26 @@ import argparse
 from threading import Thread, active_count
 
 
+def _is_dir(files, src, to):
+    for f in files:
+        print(os.path.isdir(src+f))
+        if os.path.isdir(src+f):
+            if not os.path.exists(to+f):
+                os.mkdir(to+f)
+                print(f'Make new directory in {to} successful!')
+            files_in_dir = os.listdir(src+f)
+            return _is_dir(files_in_dir, src + f + '/', to + f + '/')
+        if os.path.isfile(src+f):
+            shutil.copy2(src+f, to+f)
+            print(f'File {f} copied from {src+f} to {to+f} successfully!')
+
+
 def copy_files(from_path: str, to_path: str, threads_number=1) -> None:
     files = os.listdir(from_path)
+    print(files)
     try:
         for f in files:
-            shutil.copy2(from_path + f, to_path)
-            print(f"File {f} copied from {from_path} to {to_path} successfully!")
+            _is_dir(files, from_path, to_path)
     except FileNotFoundError:
         pass
 

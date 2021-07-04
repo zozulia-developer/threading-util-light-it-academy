@@ -1,2 +1,4 @@
 .idea/
 test_folder/
+.pytest_cache
+__pycache__

@@ -10,19 +10,25 @@ logging.basicConfig(filename='logs.log', filemode='w',
                     datefmt='%H:%M:%S', level=logging.DEBUG)
 
 
+def _make_thread(func, args) -> None:
+    """ Making thread with target function """
+    t = Thread(target=func, args=args)
+    t.start()
+
+
 def _deep_copy(src: str, to: str, s: Semaphore) -> None:
     """ Copy files with directories """
     extension = _check_pattern(src)
+    if extension:
+        logging.info('Files extension that needed to copy: %s', extension)
     src_path = src.split('*')[0]
     files = os.listdir(src_path)
     for file in files:
         if extension and file.endswith(extension):
-            t = Thread(target=_copy(src_path + file, to + file), args=(s,))
-            t.start()
+            _make_thread(_copy(src_path+file, to+file), (s,))
         if not extension and os.path.isfile(src_path+file):
-            t = Thread(target=_copy(src_path+file, to+file), args=(s,))
-            t.start()
-        if os.path.isdir(src_path+file):
+            _make_thread(_copy(src_path+file, to+file), (s,))
+        if not extension and os.path.isdir(src_path+file):
             try:
                 shutil.copytree(src_path+file, to+file)
                 logging.info('Directory %s deep copied to %s successfully!', file, to+file)
@@ -35,6 +41,12 @@ def _copy(src: str, to: str) -> None:
     if os.path.isfile(src):
         shutil.copy2(src, to)
         logging.info('File copied from %s to %s successfully!', src, to)
+
+
+def _move(src: str, to: str) -> None:
+    """ Move file with logging """
+    shutil.move(src, to)
+    logging.info('File moved from %s to %s successfully!', src, to)
 
 
 def _check_pattern(path: str) -> str:
@@ -53,28 +65,27 @@ def copy_files(from_path: str, to_path: str, s: Semaphore) -> None:
 def move_files(from_path: str, to_path: str, s: Semaphore) -> None:
     """ Move files from source path to destination path """
     extension = _check_pattern(from_path)
+    if extension:
+        logging.info('Files extension that needed to move: %s', extension)
     src_path = from_path.split('*')[0]
     files = os.listdir(src_path)
     try:
         for file in files:
             if extension and file.endswith(extension):
-                t = Thread(target=shutil.move(from_path + file, to_path), args=(s,))
-                t.start()
-                logging.info('File %s moved from %s to %s successfully!', file, from_path, to_path)
-            else:
-                t = Thread(target=shutil.move(from_path + file, to_path), args=(s,))
-                t.start()
-                logging.info('File %s moved from %s to %s successfully!', file, from_path, to_path)
+                _make_thread(_move(src_path+file, to_path), (s,))
+            if not extension:
+                _make_thread(_move(src_path+file, to_path), (s,))
     except FileNotFoundError as e:
         print(e)
 
 
 def main():
+    """ Main implementation """
     parser = argparse.ArgumentParser()
     parser.add_argument('-o', '--operation', help='select operation, move or copy')
     parser.add_argument('-f', '--FROM', help='select path where from to do operation')
     parser.add_argument('-t', '--TO', help='select path where to do operation')
-    parser.add_argument('-thr', '--threads', type=int, default=1, help='select number of threads')
+    parser.add_argument('-thr', '--threads', type=int, default=1, help='select amount of threads')
     args = parser.parse_args()
     s = Semaphore(args.threads)
     logging.info('Amount of Semaphores - %s', args.threads)
